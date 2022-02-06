@@ -1,0 +1,233 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Transform": "AWS::Serverless-2016-10-31",
+  "Description": "AWS Serverless API that exposes the add, remove and get operations for a blogging platform using Amazon DynamoDB.",
+  "Globals": {
+    "Api": {
+        "Cors": {
+            "AllowHeaders": "'*'",
+            "AllowMethods": "'*'",
+            "AllowOrigin": "'*'"
+        }
+    }
+   },
+  "Parameters": {
+    "ShouldCreateTable": {
+      "Type": "String",
+      "AllowedValues": [
+        "true",
+        "false"
+      ],
+      "Description": "If true then the DynamoDB blogging table will be created with the CloudFormation stack."
+    },
+    "BlogTableName": {
+      "Type": "String",
+      "Description": "Name of DynamoDB table used to store the blog post. If left blank a new table will be created.",
+      "MinLength": "0"
+    },
+    "ReadCapacity": {
+      "Type": "Number",
+      "Description": "Read capacity for the DynamoDB blog table.",
+      "Default": "3",
+      "MinValue": 1
+    },
+    "WriteCapacity": {
+      "Type": "Number",
+      "Description": "Write capacity for the DynamoDB blog table.",
+      "Default": "3",
+      "MinValue": 1
+    }
+  },
+  "Conditions": {
+    "CreateBlogTable": {
+      "Fn::Equals": [
+        {
+          "Ref": "ShouldCreateTable"
+        },
+        "true"
+      ]
+    },
+    "TableNameGenerated": {
+      "Fn::Equals": [
+        {
+          "Ref": "BlogTableName"
+        },
+        ""
+      ]
+    }
+  },
+  "Resources": {
+    "GetItems": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Handler": "StockDBTest::StockDBTest.Functions::GetItems",
+        "Runtime": "dotnetcore3.1",
+        "CodeUri": "",
+        "Description": "Function to get a list of items",
+        "MemorySize": 256,
+        "Timeout": 30,
+        "Role": null,
+        "Policies": [
+          "AWSLambda_FullAccess",
+          "AmazonDynamoDBFullAccess"
+        ],
+        "Environment": {
+          "Variables": {
+            "BlogTable": {
+              "Fn::If": [
+                "CreateBlogTable",
+                {
+                  "Ref": "BlogTable"
+                },
+                {
+                  "Ref": "BlogTableName"
+                }
+              ]
+            }
+          }
+        },
+        "Events": {
+          "PutResource": {
+            "Type": "Api",
+            "Properties": {
+              "Path": "/items/",
+              "Method": "GET"
+            }
+          }
+        }
+      }
+    },
+    "GetItem": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Handler": "StockDBTest::StockDBTest.Functions::GetItem",
+        "Runtime": "dotnetcore3.1",
+        "CodeUri": "",
+        "Description": "Function to get a single item",
+        "MemorySize": 256,
+        "Timeout": 30,
+        "Role": null,
+        "Policies": [
+          "AWSLambda_FullAccess",
+          "AmazonDynamoDBFullAccess"
+        ],
+        "Environment": {
+          "Variables": {
+            "BlogTable": {
+              "Fn::If": [
+                "CreateBlogTable",
+                {
+                  "Ref": "BlogTable"
+                },
+                {
+                  "Ref": "BlogTableName"
+                }
+              ]
+            }
+          }
+        },
+        "Events": {
+          "PutResource": {
+            "Type": "Api",
+            "Properties": {
+              "Path": "/items/{name}",
+              "Method": "GET"
+            }
+          }
+        }
+      }
+    },
+    "AddItem": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Handler": "StockDBTest::StockDBTest.Functions::AddItem",
+        "Runtime": "dotnetcore3.1",
+        "CodeUri": "",
+        "Description": "Function to add an item",
+        "MemorySize": 256,
+        "Timeout": 30,
+        "Role": null,
+        "Policies": [
+          "AWSLambda_FullAccess",
+          "AmazonDynamoDBFullAccess"
+        ],
+        "Environment": {
+          "Variables": {
+            "BlogTable": {
+              "Fn::If": [
+                "CreateBlogTable",
+                {
+                  "Ref": "BlogTable"
+                },
+                {
+                  "Ref": "BlogTableName"
+                }
+              ]
+            }
+          }
+        },
+        "Events": {
+          "PutResource": {
+            "Type": "Api",
+            "Properties": {
+              "Path": "/items/add",
+              "Method": "PUT"
+            }
+          }
+        }
+      }
+    },
+    "BlogTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "Condition": "CreateBlogTable",
+      "Properties": {
+        "TableName": {
+          "Fn::If": [
+            "TableNameGenerated",
+            {
+              "Ref": "AWS::NoValue"
+            },
+            {
+              "Ref": "BlogTableName"
+            }
+          ]
+        },
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "Id",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "Id",
+            "KeyType": "HASH"
+          }
+        ],
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": {
+            "Ref": "ReadCapacity"
+          },
+          "WriteCapacityUnits": {
+            "Ref": "WriteCapacity"
+          }
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "BlogTable": {
+      "Value": {
+        "Fn::If": [
+          "CreateBlogTable",
+          {
+            "Ref": "BlogTable"
+          },
+          {
+            "Ref": "BlogTableName"
+          }
+        ]
+      }
+    }
+  }
+}
