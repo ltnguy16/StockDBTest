@@ -10,7 +10,7 @@ namespace StockDBTest
     internal class ProductModel
     {
         
-        public string type { get; set; }
+        public string Type { get; set; }
         
         public string ProductId { get; set; }
         public string ProductName { get; set; }

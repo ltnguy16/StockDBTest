@@ -101,34 +101,31 @@ namespace StockDBTest
             return response;
         }
 
-        public async Task AddItem(APIGatewayProxyRequest request, ILambdaContext context)
+        public async Task<APIGatewayProxyResponse> AddItem(APIGatewayProxyRequest request, ILambdaContext context)
         {
-            Console.WriteLine("Start Add");
             var newItem = JsonSerializer.Deserialize<ProductModel>(request?.Body);
+            
             AmazonDynamoDBClient client = new AmazonDynamoDBClient();
             string id = Guid.NewGuid().ToString();
-            Console.WriteLine("check");
+
             var item = new PutItemRequest
             {
                 TableName = "ProductCatalog",
                 Item = new Dictionary<string, AttributeValue>()
                 {
-                    { "Pk", new AttributeValue { S = newItem.type} },
-                    { "Sk", new AttributeValue { S =  newItem.type + "ID_"+ id } },
+                    { "Pk", new AttributeValue { S = newItem.Type} },
+                    { "Sk", new AttributeValue { S =  newItem.Type + "ID_"+ id } },
                     { "ProductID", new AttributeValue { S = id } },
                     { "ProductName", new AttributeValue { S = newItem.ProductName } },
                     { "DepartmentName", new AttributeValue { S = newItem.DepartmentName } },
-                    { "Type", new AttributeValue { S = newItem.type } },
+                    { "Type", new AttributeValue { S = newItem.Type } },
                     { "Price", new AttributeValue { N = newItem.Price.ToString() } },
                     { "Quantity", new AttributeValue { N = newItem.Quantity.ToString() } },
                 }
             };
+           
             await client.PutItemAsync(item);
 
-            Console.WriteLine("End add");
-            /*
-            await DDBContext.SaveAsync<ProductModel>(item);
-            
             var response = new APIGatewayProxyResponse
             {
                 StatusCode = (int)HttpStatusCode.OK,
@@ -140,8 +137,6 @@ namespace StockDBTest
                 }
             };
             return response;
-            */
-            
         }
 
         private static ProductModel Getvalue(Dictionary<string, AttributeValue> attributeList)
@@ -162,7 +157,7 @@ namespace StockDBTest
                 else if (attributeName == "Quantity")
                     model.Quantity = Int32.Parse(attributeValue.N);
                 else if (attributeName == "Type")
-                    model.type = attributeValue.S;
+                    model.Type = attributeValue.S;
             }
 
             return model;

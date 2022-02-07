@@ -15,15 +15,16 @@ namespace TableTest
         static async Task Main(string[] args)
         {
             string id = Guid.NewGuid().ToString();
-            string findID = "ProductID_ffefc6af-80fc-4419-a304-d352775ef798";
+            string deleteid = "ee588811-efa1-438c-bf94-e5c2df6375b0";
+            string findID = "ProductID_" + deleteid;
             string tableName = "ProductCatalog";
 
             //await createTable(tableName);
             //await addingItem(tableName, "Product", id);
-            //await deletingItem(tableName, "Product", findID);
+            await deletingItem(tableName, "Product", findID);
             //await updatingItem(tableName, "Product", findID);
 
-            await getItems(tableName, "Product", findID);
+            //await getItems(tableName, "Product", findID);
 
             //await deleteTable(tableName);
         }
