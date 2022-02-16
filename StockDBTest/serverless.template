@@ -71,6 +71,8 @@
             "Comment": "You can create SNS Topic directly from Serverless Template this way"
         }
     },
+
+
     "TestStockSnsSSMParameter" :	{
 		"Type" : "AWS::SSM::Parameter",
 		"Properties" : {
@@ -83,6 +85,8 @@
             "Comment": "This one is basically set Store Parameter for SNS Topic Arn, so other attributes in this template can utilize SNS topic arn. https://console.aws.amazon.com/systems-manager/parameters/Stock/TestStockSNSTopic/description?region=us-east-1&tab=Table "
         }
 	},
+
+
     "AddItemWithSns": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
@@ -168,6 +172,7 @@
             ]
 		}
 	},
+    
     "SubcribeItemWithSnsSubscription" : {
 		"Type" : "AWS::SNS::Subscription",
          "Metadata": {
