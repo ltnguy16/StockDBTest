@@ -66,7 +66,10 @@
         "Type": "AWS::SNS::Topic",
         "Properties": {
 		    "DisplayName": "TestStockSNSTopic"
-	    }
+	    },
+        "Metadata": {
+            "Comment": "You can create SNS Topic directly from Serverless Template this way"
+        }
     },
     "TestStockSnsSSMParameter" :	{
 		"Type" : "AWS::SSM::Parameter",
@@ -75,7 +78,10 @@
 			"Tier" : "Standard",
 			"Type" : "String",
 			"Value" : { "Ref" : "TestStockSNSTopic" }
-		}
+		},
+        "Metadata": {
+            "Comment": "This one is basically set Store Parameter for SNS Topic Arn, so other attributes in this template can utilize SNS topic arn. https://console.aws.amazon.com/systems-manager/parameters/Stock/TestStockSNSTopic/description?region=us-east-1&tab=Table "
+        }
 	},
     "AddItemWithSns": {
       "Type": "AWS::Serverless::Function",
@@ -94,17 +100,6 @@
         ],
         "Environment": {
           "Variables": {
-            "BlogTable": {
-              "Fn::If": [
-                "CreateBlogTable",
-                {
-                  "Ref": "BlogTable"
-                },
-                {
-                  "Ref": "BlogTableName"
-                }
-              ]
-            }
           }
         },
         "Events": {
@@ -152,6 +147,9 @@
     
     "SubcribeItemWithSns" : {
 		"Type" : "AWS::Serverless::Function",
+         "Metadata": {
+            "Comment": "This is a subscribe function, noted there is no API endpoint being setup here, also if having trouble with permisison and stuffs then take at look at POLITIES attribute"
+        },
 		"Properties": {
 			"Handler": "StockDBTest::StockDBTest.Functions::SubcribeAddTopSns_Sample",
 			"Runtime": "dotnetcore3.1",
@@ -172,6 +170,9 @@
 	},
     "SubcribeItemWithSnsSubscription" : {
 		"Type" : "AWS::SNS::Subscription",
+         "Metadata": {
+            "Comment": "This is where we setup a SUBSCRIPTION, looks at the properties, you can see that we have TopicArn holds a reference of TestStockSNSTopicArn which we pull from the store paramter. and the endpoint is simply a name of the subscribe function. Also look at the Filter Policy, you can also see that this subscription is only subscribe the a certain event"
+        },
 		"Properties" : {
 			"TopicArn" : { "Ref" : "TestStockSNSTopicArn" },
 			"Protocol" : "lambda",
@@ -184,6 +185,9 @@
 
     "SubcribeItemWithSnsPerm": {
 		"Type": "AWS::Lambda::Permission",
+        "Metadata": {
+            "Comment": "ANother impportant one here, this allow your subcription to be invoked on SNS event, without this your subscription will never be called"
+        },
 		"Properties": {
 			"Action": "lambda:InvokeFunction",
 			"Principal": "sns.amazonaws.com",
