@@ -15,6 +15,7 @@ using Amazon.SimpleNotificationService.Model;
 
 using System.Text.Json;
 using Amazon.DynamoDBv2.Model;
+using Amazon.Lambda.SNSEvents;
 
 // Assembly attribute to enable the Lambda function's JSON input to be converted into a .NET class.
 [assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.SystemTextJson.DefaultLambdaJsonSerializer))]
@@ -243,6 +244,121 @@ namespace StockDBTest
             };
             return response;
         }
+
+        /*
+        Description:
+            This function will be triggered as an api, in otherword it depend on user interaction.
+            Once invoked, the logic will publish an sns event.
+            The sns event is basically create something similar to a ripple effect where anys functions exist on aws that subscript the this specific sns event will be automatically invoke
+         */
+
+        // sns topic, created from serverless template
+        private readonly string _topicArn = "arn:aws:sns:us-east-1:495886275655:Inventory-Test-TestStockSNSTopic-I1ZBBK1T0Q0F";
+        
+        public async Task<APIGatewayProxyResponse> AddTopicWithSNS_Sample(APIGatewayProxyRequest request, ILambdaContext context)
+        {
+            // OTHER LOGIC GOES HERE
+            ///////////////////////////////
+            // set up sns sclient
+            IAmazonSimpleNotificationService snsClient = new AmazonSimpleNotificationServiceClient();
+            // publish request
+            // Topic arn is required, think of it like an sns unique identifier
+            // Message, think of a like a parameter in API where data will be used to perform any specific logic
+            // Mesasage Attribute, it is a filter policy
+                // Exactly like the name implies (FILTER POLICY), meaning once this sns published, only those sns subscription that include this FILTER POLICY wil be invoked
+            PublishRequest publishRequest = new PublishRequest()
+            {
+                TopicArn = _topicArn,
+                Message = JsonSerializer.Serialize("My First Sns Messsage"),
+                MessageAttributes = new Dictionary<string, MessageAttributeValue>
+                {
+                    {
+                        "MY_FIRST_EVENT",
+                        new MessageAttributeValue
+                        {
+                            DataType = "String",
+                            StringValue = "Add_Topic_Event"
+                        }
+                    }
+                }
+            };
+
+            try
+            {
+                // Publishing the SNS
+                var publishResponse = await snsClient.PublishAsync(publishRequest).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            ///////////////////////////////
+            var response = new APIGatewayProxyResponse
+            {
+
+                StatusCode = (int)HttpStatusCode.OK,
+                Body = JsonSerializer.Serialize("696969"),
+                Headers = new Dictionary<string, string>
+                {
+                    { "Content-Type", "application/json" },
+                    { "Access-Control-Allow-Origin", "*" },
+                }
+            };
+            return response;
+        }
+
+
+        /*
+            This is subcription function, and it will be triggered whenever AddTopicWithSNS_Sample was invoked
+            Most the setup for this function is being done on the serverless template
+         */
+        public Task SubcribeAddTopSns_Sample(SNSEvent snsEvent, ILambdaContext context)
+        {
+
+            var snsResponse = snsEvent.Records.Select(x => JsonSerializer.Deserialize<string>(x.Sns.Message)).ToList();
+            foreach(var item in snsResponse)
+            {
+                Console.WriteLine(item);
+            }
+
+            return Task.CompletedTask;
+        }
+
+        /*
+            This is another test function, this one is just basically to show how to subscripe manually
+            If you pay attention to the function parameter, we utilizes APIGateway. Hence, this one is treated an api and will be invoked by the USER
+            
+            Note: you will never see this type of manual subscription in the actual work enviroment, as sns subscript tends to be triggered automatically (microservice)
+         */
+        public async Task<APIGatewayProxyResponse> SubcribeAddTopSns_Sample_TriggerWithApi(APIGatewayProxyRequest request, ILambdaContext context)
+        {
+            IAmazonSimpleNotificationService client = new AmazonSimpleNotificationServiceClient();
+
+            //sns reponse to subscribe to 
+            var snsReponse = new SubscribeRequest
+            {
+                // sns topic
+                TopicArn = _topicArn,
+                // arn of a lambda functions
+                Endpoint = "arn:aws:lambda:us-east-1:495886275655:function:Inventory-Test-SubcribeItemWithSns-s66OvoZEBHtH",
+                Protocol = "Lambda",
+            };
+            SubscribeResponse sub = await client.SubscribeAsync(snsReponse);
+            Console.WriteLine(sub.SubscriptionArn);
+
+            var response = new APIGatewayProxyResponse
+            {
+                StatusCode = (int)HttpStatusCode.OK,
+                Body = JsonSerializer.Serialize("SubcribeAddTopSns_Sample_TriggerWithApi"),
+                Headers = new Dictionary<string, string>
+                {
+                    { "Content-Type", "application/json" },
+                    { "Access-Control-Allow-Origin", "*" },
+                }
+            };
+            return response;
+        }
+
 
         private static ProductModel Getvalue(Dictionary<string, AttributeValue> attributeList)
         {
