@@ -177,6 +177,126 @@
         }
       }
     },
+    "DeleteItem": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Handler": "StockDBTest::StockDBTest.Functions::DeleteItem",
+        "Runtime": "dotnetcore3.1",
+        "CodeUri": "",
+        "Description": "Function to add an item",
+        "MemorySize": 256,
+        "Timeout": 30,
+        "Role": null,
+        "Policies": [
+          "AWSLambda_FullAccess",
+          "AmazonDynamoDBFullAccess"
+        ],
+        "Environment": {
+          "Variables": {
+            "BlogTable": {
+              "Fn::If": [
+                "CreateBlogTable",
+                {
+                  "Ref": "BlogTable"
+                },
+                {
+                  "Ref": "BlogTableName"
+                }
+              ]
+            }
+          }
+        },
+        "Events": {
+          "PutResource": {
+            "Type": "Api",
+            "Properties": {
+              "Path": "/items/delete",
+              "Method": "PUT"
+            }
+          }
+        }
+      }
+    },
+    "UpdateItem": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Handler": "StockDBTest::StockDBTest.Functions::UpdateItem",
+        "Runtime": "dotnetcore3.1",
+        "CodeUri": "",
+        "Description": "Function to add an item",
+        "MemorySize": 256,
+        "Timeout": 30,
+        "Role": null,
+        "Policies": [
+          "AWSLambda_FullAccess",
+          "AmazonDynamoDBFullAccess"
+        ],
+        "Environment": {
+          "Variables": {
+            "BlogTable": {
+              "Fn::If": [
+                "CreateBlogTable",
+                {
+                  "Ref": "BlogTable"
+                },
+                {
+                  "Ref": "BlogTableName"
+                }
+              ]
+            }
+          }
+        },
+        "Events": {
+          "PutResource": {
+            "Type": "Api",
+            "Properties": {
+              "Path": "/items/update",
+              "Method": "PUT"
+            }
+          }
+        }
+      }
+    },
+    "AddTopic": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Handler": "StockDBTest::StockDBTest.Functions::AddTopic",
+        "Runtime": "dotnetcore3.1",
+        "CodeUri": "",
+        "Description": "Function to add an item",
+        "MemorySize": 256,
+        "Timeout": 30,
+        "Role": null,
+        "Policies": [
+          "AWSLambda_FullAccess",
+          "AmazonDynamoDBFullAccess"
+        ],
+        "Environment": {
+          "Variables": {
+            "BlogTable": {
+              "Fn::If": [
+                "CreateBlogTable",
+                {
+                  "Ref": "BlogTable"
+                },
+                {
+                  "Ref": "BlogTableName"
+                }
+              ]
+            }
+          }
+        },
+        "Events": {
+          "PutResource": {
+            "Type": "Api",
+            "Properties": {
+              "Path": "/topic/add",
+              "Method": "PUT"
+            }
+          }
+        }
+      }
+    },
     "BlogTable": {
       "Type": "AWS::DynamoDB::Table",
       "Condition": "CreateBlogTable",

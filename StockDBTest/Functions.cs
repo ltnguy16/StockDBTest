@@ -10,6 +10,8 @@ using Amazon.Lambda.APIGatewayEvents;
 using Amazon;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DataModel;
+using Amazon.SimpleNotificationService;
+using Amazon.SimpleNotificationService.Model;
 
 using System.Text.Json;
 using Amazon.DynamoDBv2.Model;
@@ -101,33 +103,28 @@ namespace StockDBTest
             return response;
         }
 
-        public async Task AddItem(APIGatewayProxyRequest request, ILambdaContext context)
+        public async Task<APIGatewayProxyResponse> AddItem(APIGatewayProxyRequest request, ILambdaContext context)
         {
             Console.WriteLine("Start Add");
             var newItem = JsonSerializer.Deserialize<ProductModel>(request?.Body);
             AmazonDynamoDBClient client = new AmazonDynamoDBClient();
             string id = Guid.NewGuid().ToString();
-            Console.WriteLine("check");
             var item = new PutItemRequest
             {
                 TableName = "ProductCatalog",
                 Item = new Dictionary<string, AttributeValue>()
                 {
-                    { "Pk", new AttributeValue { S = newItem.type} },
-                    { "Sk", new AttributeValue { S =  newItem.type + "ID_"+ id } },
+                    { "Pk", new AttributeValue { S = newItem.Type} },
+                    { "Sk", new AttributeValue { S =  newItem.Type + "ID_"+ id } },
                     { "ProductID", new AttributeValue { S = id } },
                     { "ProductName", new AttributeValue { S = newItem.ProductName } },
                     { "DepartmentName", new AttributeValue { S = newItem.DepartmentName } },
-                    { "Type", new AttributeValue { S = newItem.type } },
+                    { "Type", new AttributeValue { S = newItem.Type } },
                     { "Price", new AttributeValue { N = newItem.Price.ToString() } },
                     { "Quantity", new AttributeValue { N = newItem.Quantity.ToString() } },
                 }
             };
             await client.PutItemAsync(item);
-
-            Console.WriteLine("End add");
-            /*
-            await DDBContext.SaveAsync<ProductModel>(item);
             
             var response = new APIGatewayProxyResponse
             {
@@ -140,8 +137,111 @@ namespace StockDBTest
                 }
             };
             return response;
-            */
             
+        }
+
+        public async Task<APIGatewayProxyResponse> DeleteItem(APIGatewayProxyRequest request, ILambdaContext context)
+        {
+            AmazonDynamoDBClient client = new AmazonDynamoDBClient();
+            var newItem = JsonSerializer.Deserialize<ProductModel>(request?.Body);
+
+            var item = new DeleteItemRequest
+            {
+                TableName = "ProductCatalog",
+                Key = new Dictionary<string, AttributeValue>()
+                {
+                    { "Pk", new AttributeValue { S = newItem.Type } },
+                    { "Sk", new AttributeValue { S = newItem.Type + "ID_"+ newItem.ProductId } }
+                },
+            };
+            await client.DeleteItemAsync(item);
+            var response = new APIGatewayProxyResponse
+            {
+                StatusCode = (int)HttpStatusCode.OK,
+                Body = JsonSerializer.Serialize(item),
+                Headers = new Dictionary<string, string>
+                {
+                    { "Content-Type", "application/json" },
+                    { "Access-Control-Allow-Origin", "*" },
+                }
+            };
+            return response;
+        }
+
+        public async Task<APIGatewayProxyResponse> UpdateItem(APIGatewayProxyRequest request, ILambdaContext context)
+        {
+            AmazonDynamoDBClient client = new AmazonDynamoDBClient();
+            var newItem = JsonSerializer.Deserialize<ProductModel>(request?.Body);
+
+            var item = new UpdateItemRequest
+            {
+                TableName = "ProductCatalog",
+                Key = new Dictionary<string, AttributeValue>()
+                {
+                    { "Pk", new AttributeValue { S = newItem.Type } },
+                    { "Sk", new AttributeValue { S = newItem.Type + "ID_"+ newItem.ProductId } }
+                },
+                ExpressionAttributeNames = new Dictionary<string, string>()
+                {
+                    {"#N", "ProductName"},
+                    {"#D", "DepartmentName"},
+                    {"#P", "Price"},
+                    {"#Q", "Quantity" }
+                },
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>()
+                {
+                    {":n", new AttributeValue { S = newItem.ProductName } },
+                    {":d", new AttributeValue { S = newItem.DepartmentName } },
+                    {":p", new AttributeValue { N = newItem.Price.ToString() } },
+                    {":q",  new AttributeValue { N = newItem.Quantity.ToString() } },
+                },
+
+                // ADD for Adds a new attribute to the item
+                // REMOVE for Removes
+                UpdateExpression = "SET #N = :n, #D = :d, #P = :p, #Q = :q"
+            };
+            await client.UpdateItemAsync(item);
+            var response = new APIGatewayProxyResponse
+            {
+                StatusCode = (int)HttpStatusCode.OK,
+                Body = JsonSerializer.Serialize(item),
+                Headers = new Dictionary<string, string>
+                {
+                    { "Content-Type", "application/json" },
+                    { "Access-Control-Allow-Origin", "*" },
+                }
+            };
+            return response;
+        }
+
+
+
+        public async Task<APIGatewayProxyResponse> AddTopic(APIGatewayProxyRequest request, ILambdaContext context)
+        {
+            Console.WriteLine("Start AddTopic");
+            IAmazonSimpleNotificationService client = new AmazonSimpleNotificationServiceClient();
+            
+            var message = (request?.Body.ToString());
+
+            var topic = new PublishRequest
+            {
+                TopicArn = "arn:aws:sns:us-east-1:495886275655:SNSTopicTest",
+                Message = message,
+            };
+            Console.WriteLine("finish topic");
+            await client.PublishAsync(topic);
+            //Console.WriteLine($"Successfully published message ID: {test.MessageId}");
+            var response = new APIGatewayProxyResponse
+            {
+                StatusCode = (int)HttpStatusCode.OK,
+                Body = JsonSerializer.Serialize(topic),
+                Headers = new Dictionary<string, string>
+                {
+                    { "Content-Type", "application/json" },
+                    { "Access-Control-Allow-Origin", "*" },
+                }
+            };
+            return response;
         }
 
         private static ProductModel Getvalue(Dictionary<string, AttributeValue> attributeList)
@@ -162,7 +262,7 @@ namespace StockDBTest
                 else if (attributeName == "Quantity")
                     model.Quantity = Int32.Parse(attributeValue.N);
                 else if (attributeName == "Type")
-                    model.type = attributeValue.S;
+                    model.Type = attributeValue.S;
             }
 
             return model;
