@@ -15,6 +15,7 @@ using Amazon.SimpleNotificationService.Model;
 
 using System.Text.Json;
 using Amazon.DynamoDBv2.Model;
+using Amazon.Lambda.SNSEvents;
 
 // Assembly attribute to enable the Lambda function's JSON input to be converted into a .NET class.
 [assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.SystemTextJson.DefaultLambdaJsonSerializer))]
@@ -109,6 +110,7 @@ namespace StockDBTest
             var newItem = JsonSerializer.Deserialize<ProductModel>(request?.Body);
             AmazonDynamoDBClient client = new AmazonDynamoDBClient();
             string id = Guid.NewGuid().ToString();
+
             var item = new PutItemRequest
             {
                 TableName = "ProductCatalog",
@@ -125,7 +127,38 @@ namespace StockDBTest
                 }
             };
             await client.PutItemAsync(item);
-            
+
+
+            /*=================================[SNS EDIT]=========================================*/
+            IAmazonSimpleNotificationService snsClient = new AmazonSimpleNotificationServiceClient();
+
+            PublishRequest publishRequest = new PublishRequest()
+            {
+                TopicArn = "arn:aws:sns:us-east-1:495886275655:Inventory-Test-TestStockSNSTopic-I1ZBBK1T0Q0F",
+                Message = JsonSerializer.Serialize("An New Item got Added"),
+                MessageAttributes = new Dictionary<string, MessageAttributeValue>
+                {
+                    {
+                        "ADD_ITEM_EVENT",
+                        new MessageAttributeValue
+                        {
+                            DataType = "String",
+                            StringValue = "Add_Topic_Event"
+                        }
+                    }
+                }
+            };
+            try
+            {
+                var publishResponse = await snsClient.PublishAsync(publishRequest).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            /*=================================[END SNS EDIT]=========================================*/
+
+
             var response = new APIGatewayProxyResponse
             {
                 StatusCode = (int)HttpStatusCode.OK,
@@ -158,7 +191,7 @@ namespace StockDBTest
             var response = new APIGatewayProxyResponse
             {
                 StatusCode = (int)HttpStatusCode.OK,
-                Body = JsonSerializer.Serialize(item),
+                Body = JsonSerializer.Serialize("Item Added"),
                 Headers = new Dictionary<string, string>
                 {
                     { "Content-Type", "application/json" },
@@ -214,35 +247,17 @@ namespace StockDBTest
             return response;
         }
 
-
-
-        public async Task<APIGatewayProxyResponse> AddTopic(APIGatewayProxyRequest request, ILambdaContext context)
+        /*================================================[Subscription Function]==========================================================*/
+        public Task SubscribeAddToSNS(SNSEvent snsEvent, ILambdaContext context)
         {
-            Console.WriteLine("Start AddTopic");
-            IAmazonSimpleNotificationService client = new AmazonSimpleNotificationServiceClient();
-            
-            var message = (request?.Body.ToString());
-
-            var topic = new PublishRequest
+            var snsResponse = snsEvent.Records.Select(x => JsonSerializer.Deserialize<string>(x.Sns.Message)).ToList();
+            foreach (var item in snsResponse)
             {
-                TopicArn = "arn:aws:sns:us-east-1:495886275655:SNSTopicTest",
-                Message = message,
-            };
-            Console.WriteLine("finish topic");
-            await client.PublishAsync(topic);
-            //Console.WriteLine($"Successfully published message ID: {test.MessageId}");
-            var response = new APIGatewayProxyResponse
-            {
-                StatusCode = (int)HttpStatusCode.OK,
-                Body = JsonSerializer.Serialize(topic),
-                Headers = new Dictionary<string, string>
-                {
-                    { "Content-Type", "application/json" },
-                    { "Access-Control-Allow-Origin", "*" },
-                }
-            };
-            return response;
+                Console.WriteLine(item);
+            }
+            return Task.CompletedTask;
         }
+        /*================================================[END Subscription Function]==========================================================*/
 
         private static ProductModel Getvalue(Dictionary<string, AttributeValue> attributeList)
         {

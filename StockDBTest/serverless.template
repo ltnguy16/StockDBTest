@@ -36,7 +36,12 @@
       "Description": "Write capacity for the DynamoDB blog table.",
       "Default": "3",
       "MinValue": 1
-    }
+    },
+    "TestStockSNSTopicArn": {
+		"Type": "AWS::SSM::Parameter::Value<String>",
+		"Default": "/Stock/TestStockSNSTopic",
+		"Description": "Test Arn"
+	}
   },
   "Conditions": {
     "CreateBlogTable": {
@@ -57,6 +62,21 @@
     }
   },
   "Resources": {
+    "TestStockSNSTopic": {
+        "Type": "AWS::SNS::Topic",
+        "Properties": {
+            "DisplayName": "TestStockSNSTopic"
+        }
+    },
+    "TestStockSnsSSMParameter" :	{
+		"Type" : "AWS::SSM::Parameter",
+		"Properties" : {
+			"Name" : "/Stock/TestStockSNSTopic",
+			"Tier" : "Standard",
+			"Type" : "String",
+			"Value" : { "Ref" : "TestStockSNSTopic" }
+		}
+	},
     "GetItems": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
@@ -73,17 +93,6 @@
         ],
         "Environment": {
           "Variables": {
-            "BlogTable": {
-              "Fn::If": [
-                "CreateBlogTable",
-                {
-                  "Ref": "BlogTable"
-                },
-                {
-                  "Ref": "BlogTableName"
-                }
-              ]
-            }
           }
         },
         "Events": {
@@ -113,17 +122,6 @@
         ],
         "Environment": {
           "Variables": {
-            "BlogTable": {
-              "Fn::If": [
-                "CreateBlogTable",
-                {
-                  "Ref": "BlogTable"
-                },
-                {
-                  "Ref": "BlogTableName"
-                }
-              ]
-            }
           }
         },
         "Events": {
@@ -149,21 +147,11 @@
         "Role": null,
         "Policies": [
           "AWSLambda_FullAccess",
-          "AmazonDynamoDBFullAccess"
+          "AmazonDynamoDBFullAccess",
+          "AmazonSNSFullAccess"
         ],
         "Environment": {
           "Variables": {
-            "BlogTable": {
-              "Fn::If": [
-                "CreateBlogTable",
-                {
-                  "Ref": "BlogTable"
-                },
-                {
-                  "Ref": "BlogTableName"
-                }
-              ]
-            }
           }
         },
         "Events": {
@@ -177,6 +165,48 @@
         }
       }
     },
+    "SubcribeItemWithSns" : {
+		"Type" : "AWS::Serverless::Function",
+		"Properties": {
+			"Handler": "StockDBTest::StockDBTest.Functions::SubcribeAddToSns",
+			"Runtime": "dotnetcore3.1",
+            "Description": "Subsribe to SNS",
+            "MemorySize": 256,
+            "Timeout": 30,
+			"Role": null,
+			"Tracing" : "Active",
+			"Environment" : {
+				"Variables" : {
+				}
+			},
+            "Policies": [
+              "AWSLambda_FullAccess",
+              "AmazonSNSFullAccess"
+            ]
+		}
+	},
+    "SubcribeItemWithSnsSubscription" : {
+		"Type" : "AWS::SNS::Subscription",
+		"Properties" : {
+			"TopicArn" : { "Ref" : "TestStockSNSTopicArn" },
+			"Protocol" : "lambda",
+			"Endpoint" : { "Fn::GetAtt": [ "SubcribeItemWithSns", "Arn" ] },
+            "FilterPolicy": {
+				"ADD_ITEM_EVENT": [ "Add_Topic_Event" ]
+		    }
+		}
+	},
+    "SubcribeItemWithSnsPerm" : {
+		"Type": "AWS::Lambda::Permission",
+		"Properties": {
+			"Action": "lambda:InvokeFunction",
+			"Principal": "sns.amazonaws.com",
+			"FunctionName": { "Ref": "SubcribeItemWithSns" },
+			"SourceArn": { "Ref": "TestStockSNSTopicArn" }
+		}
+	},
+    
+
     "DeleteItem": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
@@ -193,17 +223,6 @@
         ],
         "Environment": {
           "Variables": {
-            "BlogTable": {
-              "Fn::If": [
-                "CreateBlogTable",
-                {
-                  "Ref": "BlogTable"
-                },
-                {
-                  "Ref": "BlogTableName"
-                }
-              ]
-            }
           }
         },
         "Events": {
@@ -233,17 +252,6 @@
         ],
         "Environment": {
           "Variables": {
-            "BlogTable": {
-              "Fn::If": [
-                "CreateBlogTable",
-                {
-                  "Ref": "BlogTable"
-                },
-                {
-                  "Ref": "BlogTableName"
-                }
-              ]
-            }
           }
         },
         "Events": {
@@ -251,46 +259,6 @@
             "Type": "Api",
             "Properties": {
               "Path": "/items/update",
-              "Method": "PUT"
-            }
-          }
-        }
-      }
-    },
-    "AddTopic": {
-      "Type": "AWS::Serverless::Function",
-      "Properties": {
-        "Handler": "StockDBTest::StockDBTest.Functions::AddTopic",
-        "Runtime": "dotnetcore3.1",
-        "CodeUri": "",
-        "Description": "Function to add an item",
-        "MemorySize": 256,
-        "Timeout": 30,
-        "Role": null,
-        "Policies": [
-          "AWSLambda_FullAccess",
-          "AmazonDynamoDBFullAccess"
-        ],
-        "Environment": {
-          "Variables": {
-            "BlogTable": {
-              "Fn::If": [
-                "CreateBlogTable",
-                {
-                  "Ref": "BlogTable"
-                },
-                {
-                  "Ref": "BlogTableName"
-                }
-              ]
-            }
-          }
-        },
-        "Events": {
-          "PutResource": {
-            "Type": "Api",
-            "Properties": {
-              "Path": "/topic/add",
               "Method": "PUT"
             }
           }

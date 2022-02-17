@@ -66,7 +66,6 @@ namespace SNSTest
             };
 
             await client.SubscribeAsync(request);
-
         }
 
         public static async Task<string> CreateQueueAsync(IAmazonSQS sqsClient, string queueName)
